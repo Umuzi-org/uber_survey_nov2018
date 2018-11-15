@@ -1,0 +1,167 @@
+---
+title: "Uber driver survey November 2018"
+author: "Michelle Hoogenhout"
+date: "14 November 2018"
+output: html_document
+---
+
+# Purpose 
+Design a training pilot
+
+#Hypotheses in designing the pilot:
+
+UBER drivers...
+- want higher-value economic opportunities / to learn skills
+- are interested in digital careers: Trades, digital, business
+- have the aptitude for high-value digital careers
+- are prepared to study part-time alongside UBER driving long enough to develop employable skills
+- are prepared to switch to being an employee or freelancer rather than UBER driver "entrepreneur" on completion of the programme
+
+```{r setup, include=FALSE}
+
+library(ggplot2)
+library(tidyverse)
+library(magrittr)
+library(psych)
+library(cowplot) #for plotting
+library(scales) #for plotting
+library(readxl) #for excel files
+
+```
+
+**want higher-value economic opportunities / to learn skills**
+
+What percentage of drivers want to study?
+Mode and distibution of willingness to spend
+Count of certificate, new skill, job
+
+```{r define factor levels}
+
+#define order of factor levels
+OrderLengthStudy<- c("Less than 6 months", "6 months - 1 year", "1 - 2 years",
+                    "3 - 5 years", "More than 5 years")
+
+OrderTimeCommitment<- c("1 - 2 hours", "3 -5 hours", "6 - 10 hours",
+                   "10 - 15 hours", "16 - 20 hours", "More than 20 hours")
+
+OrderFreqAttendance<- c("Every weekday", "Twice a week", "Once a week", "Once a month")
+
+
+#combine all variance of currntly studying
+studying_list = c("Currently busy with studying", 
+                  "currently studying", 
+                  "Currently studying", 
+                  "Studies in progress",
+                   "I am currently busy studying at college")
+
+```
+
+```{r get data, include=FALSE}
+
+data <- readxl::read_xlsx("Umuzi Driver Education Revised.xlsx")
+
+#rename and create factors, defining order and collapsing levels of currently studying
+data %<>% rename(id = "Response ID", 
+                 WillingnessStudy = "Are you willing to study part-time while operating on Uber?",
+                 LengthWillingStudy = "For how long would you be willing to study while operating on Uber?",
+                 Skills = "Which skills would you most like to learn? Select up to three skills.",
+                 DesiredOutcome = "What is most important to you at the end of studying?",
+                 WeeklyTimeCommitment = "How much time can you commit on a weekly basis to studying?",
+                 AttendanceFrequency = "How often would you be able to attend classes, in-person, at a local campus in your city?",
+                 
+                PreferredClassFormat = "What format would you prefer for the classes?",
+                ResourceAccess = "I have access to",
+                InternetAccess = "How do you access the internet when you not operating on Uber?",
+                PreferredCost = "How much would you be willing to pay monthly for your part-time studying?",
+                SwitchPosition = "If you were given the opportunity to start a new career, would you be willing to start in a junior position?",
+                StudiedPreviously = "Have you studied before?",
+                StudySubject = "If \" yes\", what did you study?",
+                CompletedStudies = "Did you complete your studies?",
+                ReasonNotCompleting = "What prevented you from completing your studies?",
+                FocusGroup = "Would you be willing to attend a focus group to talk about your goals for further education and skills?") %>% 
+  mutate_all(funs(factor)) %>%
+  mutate(LengthWillingStudy = factor(LengthWillingStudy, levels = OrderLengthStudy),
+         WeeklyTimeCommitment = factor(WeeklyTimeCommitment, levels = OrderTimeCommitment),
+         AttendanceFrequency = factor(AttendanceFrequency, levels = OrderFreqAttendance),
+         ReasonNotCompleting = fct_collapse(ReasonNotCompleting, `Currently Studying` = studying_list))
+
+#change Studied Previously frm yes to Currently Studying
+levels(data$StudiedPreviously) <- c("No", "Yes", "Currently Studying")
+data[which(data$ReasonNotCompleting == "Currently Studying"),]$StudiedPreviously <- "Currently Studying"
+
+```
+
+
+**What skills do drivers want to learn?**
+rank skills offered; group by trade, business, digital, other
+
+```{r}
+
+
+```
+
+**Drivers are prepared to study for long enough to develop skills**
+
+```{r willingness to learn, echo = F}
+
+willstudy <- data[which(data$WillingnessStudy == "Yes"),]
+ 
+bargraph <- function(data, x, xtitle){
+  p <- ggplot(data, aes(x = x))
+  p + geom_bar(aes(y = (..count..)/sum(..count..))) + 
+    scale_y_continuous(labels=percent) + 
+    labs(x = xtitle, y = "") +
+    theme(axis.text.x = element_text(angle = 40, hjust = 1))
+}
+
+#plot graphs together
+WillingStudyGraph <- bargraph(data, data$WillingnessStudy, "Length Willing to Study")
+LengthStudyGraph <- bargraph(willstudy, willstudy$LengthWillingStudy, "Length Willing to Study")
+TimeCommitmentGraph <- bargraph(willstudy, willstudy$WeeklyTimeCommitment, "Weekly Time Commitment")
+AttendanceGraph <- bargraph(willstudy, willstudy$AttendanceFrequency, "Frequency of Attendance")
+
+plot_grid(WillingStudyGraph, LengthStudyGraph, TimeCommitmentGraph, AttendanceGraph, nrow = 2)
+
+```
+
+
+**Drivers have the aptitude to learn new skills**
+
+
+```{r study completion rates, echo = F}
+
+studiedprev <- willstudy %>% filter(StudiedPreviously == "Yes")
+
+#TODO rename Reasons for not completing levels
+
+StudiedGraph <- bargraph(willstudy, willstudy$StudiedPreviously, "Studied Before?")
+CompletedStudyGraph <- bargraph(studiedprev, studiedprev$CompletedStudies,"Completed Studies?")
+NotCompletedStudyGraph <- bargraph(studiedprev, studiedprev$ReasonNotCompleting,"Barriers to Completion")
+
+plot_grid(StudiedGraph, CompletedStudyGraph, NotCompletedStudyGraph, nrow = 2)
+
+```
+
+
+** Drivers are prepared to switch to employee/ freelancer role**
+
+```{r switch position}
+
+bargraph(willstudy, willstudy$SwitchPosition, "Prepared to Switch Position")
+
+```
+
+
+**Drivers have access to computers and internet for self study**
+
+Count laptop, internet at home, mobile data, none
+
+```{r}
+
+#TODO: correct this
+
+data$laptop = ifelse("Personal computer or laptop" %in% data$ResourceAccess, 1, 0)
+data$HomeInternet = ifelse("Internet" %in% data$ResourceAccess, 1, 0)
+
+```
+
