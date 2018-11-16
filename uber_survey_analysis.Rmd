@@ -8,7 +8,7 @@ output: html_document
 # Purpose 
 Design a training pilot
 
-#Hypotheses in designing the pilot:
+# Hypotheses in designing the pilot:
 
 UBER drivers...
 - want higher-value economic opportunities / to learn skills
@@ -29,11 +29,24 @@ library(readxl) #for excel files
 
 ```
 
-**want higher-value economic opportunities / to learn skills**
 
-What percentage of drivers want to study?
-Mode and distibution of willingness to spend
-Count of certificate, new skill, job
+```{r functions, include = F}
+
+getpercentage <- function(var){
+  x <- length(which(var == 1))/length(var)*100
+  print(round(x,0))
+}
+
+bargraph <- function(data, x, xtitle){
+  p <- ggplot(data, aes(x = x))
+  p + geom_bar(aes(y = (..count..)/sum(..count..))) + 
+    scale_y_continuous(labels=percent) + 
+    labs(x = xtitle, y = "") +
+    theme(axis.text.x = element_text(angle = 40, hjust = 1))
+}
+
+```
+
 
 ```{r define factor levels}
 
@@ -61,61 +74,114 @@ studying_list = c("Currently busy with studying",
 data <- readxl::read_xlsx("Umuzi Driver Education Revised.xlsx")
 
 #rename and create factors, defining order and collapsing levels of currently studying
-data %<>% rename(id = "Response ID", 
-                 WillingnessStudy = "Are you willing to study part-time while operating on Uber?",
-                 LengthWillingStudy = "For how long would you be willing to study while operating on Uber?",
-                 Skills = "Which skills would you most like to learn? Select up to three skills.",
-                 DesiredOutcome = "What is most important to you at the end of studying?",
-                 WeeklyTimeCommitment = "How much time can you commit on a weekly basis to studying?",
-                 AttendanceFrequency = "How often would you be able to attend classes, in-person, at a local campus in your city?",
-                 
-                PreferredClassFormat = "What format would you prefer for the classes?",
-                ResourceAccess = "I have access to",
-                InternetAccess = "How do you access the internet when you not operating on Uber?",
-                PreferredCost = "How much would you be willing to pay monthly for your part-time studying?",
-                SwitchPosition = "If you were given the opportunity to start a new career, would you be willing to start in a junior position?",
-                StudiedPreviously = "Have you studied before?",
-                StudySubject = "If \" yes\", what did you study?",
-                CompletedStudies = "Did you complete your studies?",
-                ReasonNotCompleting = "What prevented you from completing your studies?",
-                FocusGroup = "Would you be willing to attend a focus group to talk about your goals for further education and skills?") %>% 
+data %<>% rename(
+  id = "Response ID", 
+  WillingnessStudy = "Are you willing to study part-time while operating on Uber?",
+  LengthWillingStudy = "For how long would you be willing to study while operating on Uber?",
+  Skills = "Which skills would you most like to learn? Select up to three skills.",
+  DesiredOutcome = "What is most important to you at the end of studying?",
+  WeeklyTimeCommitment = "How much time can you commit on a weekly basis to studying?",
+  AttendanceFrequency = "How often would you be able to attend classes, in-person, at a local campus in your city?",
+  PreferredClassFormat = "What format would you prefer for the classes?",
+  ResourceAccess = "I have access to",
+  InternetAccess = "How do you access the internet when you not operating on Uber?",
+  PreferredCost = "How much would you be willing to pay monthly for your part-time studying?",
+  SwitchPosition = "If you were given the opportunity to start a new career, would you be willing to start in a junior position?",
+  StudiedPreviously = "Have you studied before?",
+  StudySubject = "If \" yes\", what did you study?",
+  CompletedStudies = "Did you complete your studies?",
+  ReasonNotCompleting = "What prevented you from completing your studies?",
+  FocusGroup = "Would you be willing to attend a focus group to talk about your goals for further education and skills?") %>% 
   mutate_all(funs(factor)) %>%
   mutate(LengthWillingStudy = factor(LengthWillingStudy, levels = OrderLengthStudy),
          WeeklyTimeCommitment = factor(WeeklyTimeCommitment, levels = OrderTimeCommitment),
          AttendanceFrequency = factor(AttendanceFrequency, levels = OrderFreqAttendance),
-         ReasonNotCompleting = fct_collapse(ReasonNotCompleting, `Currently Studying` = studying_list))
+         ReasonNotCompleting = fct_collapse(ReasonNotCompleting, `Currently Studying` = studying_list)
+                )
+
+#get laptop and personal computer separately from list
+data %<>% mutate(
+  laptop=ifelse(grepl("Personal computer", ResourceAccess), 1, 0),
+  HomeInternet=ifelse(grepl("Internet", ResourceAccess), 1, 0),
+  FriendsPC=ifelse(grepl("friend or family member's computer", ResourceAccess), 1, 0) )
 
 #change Studied Previously frm yes to Currently Studying
 levels(data$StudiedPreviously) <- c("No", "Yes", "Currently Studying")
 data[which(data$ReasonNotCompleting == "Currently Studying"),]$StudiedPreviously <- "Currently Studying"
 
-```
 
-
-**What skills do drivers want to learn?**
-rank skills offered; group by trade, business, digital, other
-
-```{r}
-
+#trim whitespace
+trimws(data$Skills)
 
 ```
+## Drivers want higher-value economic opportunities / to learn skills
 
-**Drivers are prepared to study for long enough to develop skills**
+What percentage of drivers want to study?
+Mode and distibution of willingness to spend
+Count of certificate, new skill, job
 
-```{r willingness to learn, echo = F}
+```{r cost outcome willing}
 
 willstudy <- data[which(data$WillingnessStudy == "Yes"),]
  
-bargraph <- function(data, x, xtitle){
-  p <- ggplot(data, aes(x = x))
-  p + geom_bar(aes(y = (..count..)/sum(..count..))) + 
-    scale_y_continuous(labels=percent) + 
-    labs(x = xtitle, y = "") +
-    theme(axis.text.x = element_text(angle = 40, hjust = 1))
-}
 
-#plot graphs together
 WillingStudyGraph <- bargraph(data, data$WillingnessStudy, "Length Willing to Study")
+
+bargraph(willstudy, willstudy$PreferredCost, "Preferred Cost")
+
+bargraph(willstudy, willstudy$DesiredOutcome, "")
+
+
+```
+
+
+## What skills do drivers want to learn?
+rank skills offered; group by trade, business, digital, other
+
+```{r skill types}
+# 
+# temp <- unlist(strsplit(as.character(data$Skills), c(",", " and ")))
+# skillslist <- unlist(strsplit(temp, ","))         
+#          
+# TRADESKILLS = c("Electrical", "Mechanics", "Construction", "Plumbing", "Rigging", 
+#                 " Crane operator", "Boiler Maker", "Boiler making", "Oil and gas drilling operations and reading operations")
+# 
+# BUSINESS_SKILLS = c("Entrepreneurship (running your own business)", 
+#                     "Business Studies", "Business strategy", "Project Management", 
+#                     "Financial Accounting", "Accounting", "MBA")
+# 
+# IT_SKILLS = c("Basic computer literacy", "IT", "IT fixing computers, 
+#               Web development", "Data science", "Data engineering", "Programming", "Data analysis")
+# 
+# MARKETING = "Marketing"
+# 
+# 
+# head(ifelse(TRADESKILLS %in% data$Skills, 1, 0))
+# head(data$Skills)
+# 
+# head(ifelse(BUSINESS_SKILLS %in% data$Skills, 1, 0))
+# 
+# #add categories related to business, trade and IT
+# data %>% mutate(
+#   SkillType = Skills,
+#   fct_collapse(SkillType, 
+#                Trades = TRADESKILLS, 
+#                Business = BUSINESS_SKILLS, 
+#                Computing = IT_SKILLS, 
+#                Marketing = MARKETING)) %>% 
+#   add_count(SkillType)
+# 
+# 
+# sort(table(skillslist))
+# 
+# 
+
+```
+
+## Drivers are prepared to study for long enough to develop skills
+
+```{r willingness to learn, echo = F}
+
 LengthStudyGraph <- bargraph(willstudy, willstudy$LengthWillingStudy, "Length Willing to Study")
 TimeCommitmentGraph <- bargraph(willstudy, willstudy$WeeklyTimeCommitment, "Weekly Time Commitment")
 AttendanceGraph <- bargraph(willstudy, willstudy$AttendanceFrequency, "Frequency of Attendance")
@@ -125,7 +191,7 @@ plot_grid(WillingStudyGraph, LengthStudyGraph, TimeCommitmentGraph, AttendanceGr
 ```
 
 
-**Drivers have the aptitude to learn new skills**
+## Drivers have the aptitude to learn new skills
 
 
 ```{r study completion rates, echo = F}
@@ -133,6 +199,8 @@ plot_grid(WillingStudyGraph, LengthStudyGraph, TimeCommitmentGraph, AttendanceGr
 studiedprev <- willstudy %>% filter(StudiedPreviously == "Yes")
 
 #TODO rename Reasons for not completing levels
+
+barriers = c("Educational support", "Money", "Time", "Started Working", "Prefer not to say", "Personal")
 
 StudiedGraph <- bargraph(willstudy, willstudy$StudiedPreviously, "Studied Before?")
 CompletedStudyGraph <- bargraph(studiedprev, studiedprev$CompletedStudies,"Completed Studies?")
@@ -143,7 +211,7 @@ plot_grid(StudiedGraph, CompletedStudyGraph, NotCompletedStudyGraph, nrow = 2)
 ```
 
 
-** Drivers are prepared to switch to employee/ freelancer role**
+## Drivers are prepared to switch to employee/ freelancer role
 
 ```{r switch position}
 
@@ -152,16 +220,23 @@ bargraph(willstudy, willstudy$SwitchPosition, "Prepared to Switch Position")
 ```
 
 
-**Drivers have access to computers and internet for self study**
+## Drivers have access to computers and internet for self study
 
-Count laptop, internet at home, mobile data, none
+Of the drivers surveyed, `r getpercentage(data$laptop)` have laptops, `r getpercentage(data$HomeInternet)` have internet at home. Most drivers access the internet through their mobile phone. 
 
-```{r}
+```{r laptop internet}
 
-#TODO: correct this
+table(data$laptop)
+table(data$HomeInternet)
+table(data$InternetAccess)
 
-data$laptop = ifelse("Personal computer or laptop" %in% data$ResourceAccess, 1, 0)
-data$HomeInternet = ifelse("Internet" %in% data$ResourceAccess, 1, 0)
+
+getpercentage(data$laptop)
+getpercentage(data$HomeInternet)
+getpercentage(data$FriendsPC)
+
+
+bargraph(willstudy, willstudy$InternetAccess, "Method of Internet Access")
 
 ```
 
