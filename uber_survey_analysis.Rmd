@@ -45,6 +45,19 @@ bargraph <- function(data, x, xtitle){
     theme(axis.text.x = element_text(angle = 40, hjust = 1))
 }
 
+exportgraph <- function(graphname, exportname){
+  png(filename = exportname, 
+    type="cairo",
+    units="in", 
+    width=8, 
+    height=6, 
+    pointsize=12, 
+    res=96)
+  return(graphname)
+dev.off()
+
+}
+
 ```
 
 
@@ -58,6 +71,9 @@ OrderTimeCommitment<- c("1 - 2 hours", "3 -5 hours", "6 - 10 hours",
                    "10 - 15 hours", "16 - 20 hours", "More than 20 hours")
 
 OrderFreqAttendance<- c("Every weekday", "Twice a week", "Once a week", "Once a month")
+
+OrderPreferredCost <- c("I'm not willing to pay for studying", "Less than R200", 
+                        "R200 - R499", "R500 - R999", "R1000 - R1999", "R2000 - R2999")
 
 
 #combine all variance of currntly studying
@@ -96,6 +112,7 @@ data %<>% rename(
   mutate(LengthWillingStudy = factor(LengthWillingStudy, levels = OrderLengthStudy),
          WeeklyTimeCommitment = factor(WeeklyTimeCommitment, levels = OrderTimeCommitment),
          AttendanceFrequency = factor(AttendanceFrequency, levels = OrderFreqAttendance),
+         PreferredCost = factor(PreferredCost, levels = OrderPreferredCost),
          ReasonNotCompleting = fct_collapse(ReasonNotCompleting, `Currently Studying` = studying_list)
                 )
 
@@ -110,8 +127,8 @@ levels(data$StudiedPreviously) <- c("No", "Yes", "Currently Studying")
 data[which(data$ReasonNotCompleting == "Currently Studying"),]$StudiedPreviously <- "Currently Studying"
 
 
-#trim whitespace
-trimws(data$Skills)
+#trim whitespace and make lower case for differences in input
+data$skills <- tolower(trimws(data$Skills))
 
 ```
 ## Drivers want higher-value economic opportunities / to learn skills
@@ -127,10 +144,9 @@ willstudy <- data[which(data$WillingnessStudy == "Yes"),]
 
 WillingStudyGraph <- bargraph(data, data$WillingnessStudy, "Length Willing to Study")
 
-bargraph(willstudy, willstudy$PreferredCost, "Preferred Cost")
+costgraph <- bargraph(willstudy, willstudy$PreferredCost, "Preferred Cost")
 
-bargraph(willstudy, willstudy$DesiredOutcome, "")
-
+outcomegraph <- bargraph(willstudy, willstudy$DesiredOutcome, "Desired Outcome")
 
 ```
 
@@ -139,41 +155,41 @@ bargraph(willstudy, willstudy$DesiredOutcome, "")
 rank skills offered; group by trade, business, digital, other
 
 ```{r skill types}
-# 
-# temp <- unlist(strsplit(as.character(data$Skills), c(",", " and ")))
-# skillslist <- unlist(strsplit(temp, ","))         
-#          
-# TRADESKILLS = c("Electrical", "Mechanics", "Construction", "Plumbing", "Rigging", 
-#                 " Crane operator", "Boiler Maker", "Boiler making", "Oil and gas drilling operations and reading operations")
-# 
-# BUSINESS_SKILLS = c("Entrepreneurship (running your own business)", 
-#                     "Business Studies", "Business strategy", "Project Management", 
-#                     "Financial Accounting", "Accounting", "MBA")
-# 
-# IT_SKILLS = c("Basic computer literacy", "IT", "IT fixing computers, 
-#               Web development", "Data science", "Data engineering", "Programming", "Data analysis")
-# 
-# MARKETING = "Marketing"
-# 
-# 
-# head(ifelse(TRADESKILLS %in% data$Skills, 1, 0))
-# head(data$Skills)
-# 
-# head(ifelse(BUSINESS_SKILLS %in% data$Skills, 1, 0))
-# 
-# #add categories related to business, trade and IT
-# data %>% mutate(
-#   SkillType = Skills,
-#   fct_collapse(SkillType, 
-#                Trades = TRADESKILLS, 
-#                Business = BUSINESS_SKILLS, 
-#                Computing = IT_SKILLS, 
-#                Marketing = MARKETING)) %>% 
-#   add_count(SkillType)
-# 
-# 
-# sort(table(skillslist))
-# 
+
+temp <- unlist(strsplit(as.character(data$Skills), c(",", " and ")))
+skillslist <- unlist(strsplit(temp, ","))
+
+TRADESKILLS = c("Electrical", "Mechanics", "Construction", "Plumbing", "Rigging",
+                " Crane operator", "Boiler Maker", "Boiler making", "Oil and gas drilling operations and reading operations")
+
+BUSINESS_SKILLS = c("Entrepreneurship (running your own business)",
+                    "Business Studies", "Business strategy", "Project Management",
+                    "Financial Accounting", "Accounting", "MBA")
+
+IT_SKILLS = c("Basic computer literacy", "IT", "IT fixing computers,
+              Web development", "Data science", "Data engineering", "Programming", "Data analysis")
+
+MARKETING = "Marketing"
+
+
+head(ifelse(TRADESKILLS %in% skillslist, 1, 0))
+head(data$Skills)
+
+head(ifelse(BUSINESS_SKILLS %in% data$Skills, 1, 0))
+
+#add categories related to business, trade and IT
+data %>% mutate(
+  SkillType = Skills,
+  fct_collapse(SkillType,
+               Trades = TRADESKILLS,
+               Business = BUSINESS_SKILLS,
+               Computing = IT_SKILLS,
+               Marketing = MARKETING)) %>%
+  add_count(SkillType)
+
+
+sort(table(skillslist))
+
 # 
 
 ```
@@ -208,6 +224,8 @@ NotCompletedStudyGraph <- bargraph(studiedprev, studiedprev$ReasonNotCompleting,
 
 plot_grid(StudiedGraph, CompletedStudyGraph, NotCompletedStudyGraph, nrow = 2)
 
+
+
 ```
 
 
@@ -215,7 +233,7 @@ plot_grid(StudiedGraph, CompletedStudyGraph, NotCompletedStudyGraph, nrow = 2)
 
 ```{r switch position}
 
-bargraph(willstudy, willstudy$SwitchPosition, "Prepared to Switch Position")
+SwitchPositionGraph <- bargraph(willstudy, willstudy$SwitchPosition, "Prepared to Switch Position")
 
 ```
 
@@ -223,6 +241,7 @@ bargraph(willstudy, willstudy$SwitchPosition, "Prepared to Switch Position")
 ## Drivers have access to computers and internet for self study
 
 Of the drivers surveyed, `r getpercentage(data$laptop)` have laptops, `r getpercentage(data$HomeInternet)` have internet at home. Most drivers access the internet through their mobile phone. 
+
 
 ```{r laptop internet}
 
@@ -236,7 +255,40 @@ getpercentage(data$HomeInternet)
 getpercentage(data$FriendsPC)
 
 
-bargraph(willstudy, willstudy$InternetAccess, "Method of Internet Access")
+InternetGraph <- bargraph(willstudy, willstudy$InternetAccess, "Method of Internet Access")
 
+```
+
+```{r graph export}
+
+graphlist <- list(c(outcomegraph, "figs/Outcome.png"),
+              c(costgraph, "figs/Cost.png"),
+              c(LengthStudyGraph, "figs/LengthStudy.png"),
+              c(LengthStudyGraph, "figs/LengthStudy.png"),
+              c(TimeCommitmentGraph, "figs/TimeCommitment.png"),
+              c(AttendanceGraph, "figs/Attendance.png"),
+              c(StudiedGraph, "figs/StudiedBefore.png"),
+              c(CompletedStudyGraph, "figs/CompletedStudies.png"),
+              c(NotCompletedStudyGraph, "figs/ReasonsNotCompletedStudy.png"),
+              c(SwitchPositionGraph, "figs/SwitchPosition.png"),
+              c(InternetGraph, "figs/InternetAccess.png"))
+
+# for (graph in graphlist){
+#   exportgraph(graphtlist[graph][1], graphlist[graph[2]])
+# }
+
+
+exportgraph(outcomegraph, "figs/Outcome.png")
+exportgraph(costgraph, "figs/Cost.png")
+exportgraph(LengthStudyGraph, "figs/LengthStudy.png")
+exportgraph(TimeCommitmentGraph, "figs/TimeCommitment.png")
+exportgraph(AttendanceGraph, "figs/Attendance.png")
+exportgraph(StudiedGraph, "figs/StudiedBefore.png")
+exportgraph(CompletedStudyGraph, "figs/CompletedStudies.png")
+exportgraph(NotCompletedStudyGraph, "figs/ReasonsNotCompletedStudy.png")
+exportgraph(SwitchPositionGraph, "figs/SwitchPosition.png")
+exportgraph(InternetGraph, "figs/InternetAccess.png")
+
+dev.off()
 ```
 
