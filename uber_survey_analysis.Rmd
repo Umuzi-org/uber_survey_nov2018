@@ -23,158 +23,79 @@ library(tidyverse) #data wrangling
 library(magrittr) #pipe
 library(ggplot2) #plot
 library(scales) #for plotting
-library(readxl) #for excel files
 library(tm) #word count 
 library(tau)
-
-source("importdata.R")
-
-```
-
-
-```{r define factor levels}
-
-#define order of factor levels
-OrderLengthStudy<- c("Less than 6 months", "6 months - 1 year", "1 - 2 years",
-                    "3 - 5 years", "More than 5 years")
-
-OrderTimeCommitment<- c("1 - 2 hours", "3 -5 hours", "6 - 10 hours",
-                   "10 - 15 hours", "16 - 20 hours", "More than 20 hours")
-
-OrderFreqAttendance<- c("Every weekday", "Twice a week", "Once a week", "Twice a month", "Once a month")
-
-OrderPreferredCost <- c("I'm not willing to pay for studying", "Less than R200", 
-                        "R200 - R499", "R500 - R999", "R1000 - R1999", "R2000 - R2999")
-
-
-#combine all variants of currntly studying
-studying_list_glh = c("Currently busy with studying", 
-                  "currently studying", 
-                  "Currently studying", 
-                  "Studies in progress",
-                   "I am currently busy studying at college")
-
-studying_list_expo = c("Still studying", 
-                  "Still in progress")
 
 ```
 
 ```{r functions, include = F}
 
-#get laptop and personal computer separately from list
-pclaptop <- function(data){
-  data %<>% mutate(
-  laptop=ifelse(grepl("Personal computer", ResourceAccess), 1, 0),
-  HomeInternet=ifelse(grepl("Internet", ResourceAccess), 1, 0),
-  FriendsPC=ifelse(grepl("friend or family member's computer", ResourceAccess), 1, 0))
-  
-  return(data)
-}
-
-
 #get percentage of TRUE observations
 getpercentage <- function(var){
-  x <- length(which(var == 1))/length(var)*100
-  print(round(x,0))
+ x <- length(which(var == 1))/length(var)*100
+ print(round(x,0))
 }
 
 #basic bargraph
 bargraph <- function(data, x, title = ""){
-  p <- ggplot(data, aes(x = x))
-  p + geom_bar(aes(y = (..count..)/sum(..count..))) + 
-    scale_y_continuous(labels=percent) + 
-    labs(x = "", y = "") +
-    ggtitle(title) +
-    theme(axis.text.x = element_text(angle = 40, size = 16, hjust = 1),
-          axis.text.y = element_text(size = 16))
-    
+ p <- ggplot(data, aes(x = x))
+ p + geom_bar(aes(y = (..count..)/sum(..count..))) + 
+  scale_y_continuous(labels=percent) + 
+  labs(x = "", y = "") +
+  ggtitle(title) +
+  theme(axis.text.x = element_text(angle = 40, size = 16, hjust = 1),
+        axis.text.y = element_text(size = 16))
+ 
 }
 
 #export graph
 exportgraph <- function(graphname, exportname, width=8, height=6){
-  png(filename = exportname, 
-    type="cairo",
-    units="in", 
-    width=width, 
-    height=height, 
-    pointsize=12, 
-    res=96)
-  return(graphname)
-dev.off()
-
+ png(filename = exportname, 
+     type="cairo",
+     units="in", 
+     width=width, 
+     height=height, 
+     pointsize=12, 
+     res=96)
+ return(graphname)
+ dev.off()
+ 
 }
 
 #count number of observations fitting within defined category in a list
 countcats <- function(category, list){
-  length(grep(paste(category,collapse="|"), 
-                        list, value=TRUE))
+ length(grep(paste(category,collapse="|"), 
+             list, value=TRUE))
 }
 
 
 #get count of words that occur frequently
 wordcount <- function(minfreq, maxfreq, list, removewords){
-
-  # Remove Words and Tokenize Text
-  skillstext <- textcnt(
+ 
+ # Remove Words and Tokenize Text
+ skillstext <- textcnt(
   removeWords(scan_tokenizer(list), removewords), 
   method = "string", n = 1L, lower = 1L)
-
-  # Change List to Data Frame
-  skillsdata <- plyr::ldply(skillstext, data.frame) 
-
-  # Filter by occurence
-  results <- skillsdata %>%  filter(skillsdata[,2]> minfreq & skillsdata[,2]< maxfreq)
-  colnames(results)<-c("word", "frequency")
-  
-  return(results)
-  
+ 
+ # Change List to Data Frame
+ skillsdata <- plyr::ldply(skillstext, data.frame) 
+ 
+ # Filter by occurence
+ results <- skillsdata %>%  filter(skillsdata[,2]> minfreq & skillsdata[,2]< maxfreq)
+ colnames(results)<-c("word", "frequency")
+ 
+ return(results)
+ 
 }
 
 
 ```
 
 
-```{r get GLH data, include=FALSE}
+```{r get data}
 
-#import survey data
-glhdata <- importdata("Umuzi Driver Education Revised.xlsx", "GLH")
-expodata <- importdata("UMUZI2Uber Driver-Partner Survey 2.0 (Responses).xlsx", "expo")
-
-#revalue internet access
-glhdata$InternetAccess <- plyr::revalue(glhdata$InternetAccess, 
-                    c("I don't have any internet access when not operating on Uber"="None",
-                    "Internet at home"="WiFi at home",
-                    "Internet Cafe" = "Internet Cafe",
-                    "With your cellphone data" = "Mobile data"))
-
-expodata$InternetAccess <- plyr::revalue(expodata$InternetAccess, 
-                    c("I don't have any internet access when not operating on Uber"="None",
-                      "Internet at home (WiFi or ADSL)"="WiFi at home",
-                      "Internet Cafe" = "Internet Cafe",
-                      "With your cellphone data" = "Mobile data",
-                      "Free internet from a community centre" = "Community Centre"))
-
-#get PC & laptop columns (1 == yes)
-expodata <- pclaptop(expodata)
-glhdata <- pclaptop(glhdata)
-
-#change Studied Previously frm yes to Currently Studying
-
-studycompletion <- function(data){
-  levels(data$StudiedPreviously) <- c("No", "Yes", "Currently Studying")
-  data[which(data$ReasonNotCompleting == "Currently Studying"),
-       ]$StudiedPreviously <- "Currently Studying"
-  
-  return(data)
-}
-
-#change completed = No to completed = Currently studying for those still in program
-glhdata <- studycompletion(glhdata)
-#TODO: must take into account "Did not complete highschool"
-#expodata <- studycompletion(expodata) 
-
-#trim whitespace and make lower case for differences in input
-glhdata$skills <- toupper(trimws(glhdata$Skills))
+DATA <- read.csv("clean/alldata.csv")
+WILLSTUDY <- read.csv("clean/willstudy_all.csv")
 
 ```
 
@@ -187,23 +108,16 @@ Count of certificate, new skill, job
 
 ```{r cost outcome willing}
 
-willstudy <- glhdata[which(glhdata$WillingnessStudy == "Yes"),]
- 
-
-WillingStudyGraph <- bargraph(glhdata, glhdata$WillingnessStudy, "Willing to Study Part-Time?")
+#how many drivers are willing to study?
+WillingStudyGraph <- bargraph(DATA, DATA$WillingnessStudy, "Willing to Study Part-Time?")
 
 costlevels <- c("Nothing", "Less than R200", "R200 - R499", 
                 "R500 - R999", "R1000 - R1999", "R2000 - R2999")
 
-costgraph <- ggplot(willstudy, aes(PreferredCost)) +
-  geom_bar(aes(y = (..count..)/sum(..count..))) + 
-  ggtitle("Preferred Cost") +
-  scale_x_discrete(labels = costlevels) +
-  theme(axis.text.x = element_text(angle=50, size = 16, hjust = 1),
-        axis.text.y = element_text(size = 16)) +
-  labs(x = "", y = "")
+costgraph <- bargraph(WILLSTUDY, WILLSTUDY$PreferredCost, "Preferred Cost") +
+ scale_x_discrete(labels = costlevels)
 
-outcomegraph <- bargraph(willstudy, willstudy$DesiredOutcome, "Desired Outcome")
+outcomegraph <- bargraph(WILLSTUDY, WILLSTUDY$DesiredOutcome, "Desired Outcome")
 
 ```
 
@@ -214,7 +128,7 @@ rank skills offered; group by trade, business, digital, other
 ```{r skill types}
 
 #List all Skills in vector
-temp <- unlist(strsplit(as.character(glhdata$Skills), c(",", " and ")))
+temp <- unlist(strsplit(as.character(DATA$Skills), c(",", " and ")))
 skillslist <- unlist(strsplit(temp, ","))
 
 #categories
@@ -239,7 +153,7 @@ skillcats <- list(TRADESKILLS, BUSINESS_SKILLS, IT_SKILLS, MARKETING)
 skillscount <- list()
 
 for (cat in seq_along(skillcats)){
-  skillscount[[cat]] <- countcats(skillcats[[cat]], skillslist)
+ skillscount[[cat]] <- countcats(skillcats[[cat]], skillslist)
 }
 
 #Bind to df
@@ -249,11 +163,11 @@ colnames(skill_df) <- c("Category", "Count")
 
 #graph popular skill areas 
 SkillGraph <- ggplot(skill_df, aes(Category, Count)) +
-         geom_bar(stat = "identity") + 
-         ggtitle("Popular skill areas") +
-  theme(axis.text.x = element_text(angle = 40, size = 16, hjust = 1),
-          axis.text.y = element_text(size = 16)) +
-  labs(x = "", y = "Count")
+ geom_bar(stat = "identity") + 
+ ggtitle("Popular skill areas") +
+ theme(axis.text.x = element_text(angle = 40, size = 16, hjust = 1),
+       axis.text.y = element_text(size = 16)) +
+ labs(x = "", y = "Count")
 
 ```
 
@@ -262,7 +176,7 @@ SkillGraph <- ggplot(skill_df, aes(Category, Count)) +
 
 # words not to be counted
 removewords <- c("and", "basic", "literacy", "making", 
-                "development", "running", "your", "own", "the", " basic")
+                 "development", "running", "your", "own", "the", " basic")
 
 skillcount <- wordcount(3,100, skillslist, removewords)
 
@@ -272,47 +186,47 @@ skillcount <- skillcount[-14,]
 
 #polar coordinates graph of all words
 SkillCoord <- ggplot(skillcount, aes(reorder(word, frequency), frequency, fill=word)) + 
-  geom_bar(stat = "identity", colour = "black") +
-  coord_polar(theta = "x") + xlab("") + ylab("") + 
-  ggtitle("Word Frequency: Skills") +
-  theme(legend.position = "none",
-        axis.text.x = element_text(size = 16, angle=-10),
-        axis.text.y = element_text(size = 16)) + 
-  labs(x = NULL, y = NULL)
+ geom_bar(stat = "identity", colour = "black") +
+ coord_polar(theta = "x") + xlab("") + ylab("") + 
+ ggtitle("Word Frequency: Skills") +
+ theme(legend.position = "none",
+       axis.text.x = element_text(size = 16, angle=-10),
+       axis.text.y = element_text(size = 16)) + 
+ labs(x = NULL, y = NULL)
 
 #bargraph
 SkillBarGraph <- ggplot(skillcount, aes(reorder(word, frequency), frequency)) +
-  geom_bar(stat = "identity", colour = "black") + 
-  ggtitle("Word Frequency: Skills") + labs(y = "Frequency", x = "") +
-  theme(axis.text.x = element_text(angle = 40, size = 16, hjust = 1),
-        axis.text.y = element_text(size = 16))
+ geom_bar(stat = "identity", colour = "black") + 
+ ggtitle("Word Frequency: Skills") + labs(y = "Frequency", x = "") +
+ theme(axis.text.x = element_text(angle = 40, size = 16, hjust = 1),
+       axis.text.y = element_text(size = 16))
 
 
 #bargraph, not cleaned
 # Change List to Data Frame
-  testskills <- plyr::ldply(skillslist, data.frame) 
+testskills <- plyr::ldply(skillslist, data.frame) 
 
-  # Filter by occurence
- # tresults <- testskills %>%  filter(testskills[,2]> minfreq & testskills[,2]< maxfreq)
- # colnames(tresults)<-c("word", "frequency")
+# Filter by occurence
+# tresults <- testskills %>%  filter(testskills[,2]> minfreq & testskills[,2]< maxfreq)
+# colnames(tresults)<-c("word", "frequency")
 ggplot(skillslist, aes(reorder(word, frequency), frequency)) +
-  geom_bar(stat = "identity", colour = "black") + 
-  ggtitle("Word Frequency: Skills") + labs(y = "Frequency", x = "") +
-  theme(axis.text.x = element_text(angle = 40, size = 16, hjust = 1),
-        axis.text.y = element_text(size = 16))
+ geom_bar(stat = "identity", colour = "black") + 
+ ggtitle("Word Frequency: Skills") + labs(y = "Frequency", x = "") +
+ theme(axis.text.x = element_text(angle = 40, size = 16, hjust = 1),
+       axis.text.y = element_text(size = 16))
 
 #colourful
 plotly::ggplotly(ggplot2::ggplot(skillcount, aes(reorder(word, frequency), frequency, fill=word)) +
-                   geom_bar(width = 0.75, stat = "identity", colour = "black", size = 1) + 
-                   xlab("") + ylab("") + 
-                   ggtitle("Word Frequency") + 
-                   theme(legend.position = "none") + 
-                   labs(x = NULL, y = NULL) + 
-                   theme(plot.subtitle = element_text(vjust = 1), 
-                         plot.caption = element_text(vjust = 1), 
-                         axis.text.x = element_text(size = 12, angle = 40)) + 
-                   theme(panel.background = element_rect(fill = "honeydew1"),
-                         plot.background = element_rect(fill = "antiquewhite"))) 
+                  geom_bar(width = 0.75, stat = "identity", colour = "black", size = 1) + 
+                  xlab("") + ylab("") + 
+                  ggtitle("Word Frequency") + 
+                  theme(legend.position = "none") + 
+                  labs(x = NULL, y = NULL) + 
+                  theme(plot.subtitle = element_text(vjust = 1), 
+                        plot.caption = element_text(vjust = 1), 
+                        axis.text.x = element_text(size = 12, angle = 40)) + 
+                  theme(panel.background = element_rect(fill = "honeydew1"),
+                        plot.background = element_rect(fill = "antiquewhite"))) 
 
 ```
 
@@ -320,9 +234,9 @@ plotly::ggplotly(ggplot2::ggplot(skillcount, aes(reorder(word, frequency), frequ
 
 ```{r willingness to learn, echo = F}
 
-LengthStudyGraph <- bargraph(willstudy, willstudy$LengthWillingStudy, "Length Willing to Study")
-TimeCommitmentGraph <- bargraph(willstudy, willstudy$WeeklyTimeCommitment, "Weekly Time Commitment")
-AttendanceGraph <- bargraph(willstudy, willstudy$AttendanceFrequency, "Frequency of Attendance")
+LengthStudyGraph <- bargraph(WILLSTUDY, WILLSTUDY$LengthWillingStudy, "Length Willing to Study")
+TimeCommitmentGraph <- bargraph(WILLSTUDY, WILLSTUDY$DailyTimeCommitment, "Daily Time Commitment")
+AttendanceGraph <- bargraph(WILLSTUDY, WILLSTUDY$AttendanceFrequency, "Frequency of Attendance")
 
 ```
 
@@ -332,55 +246,49 @@ AttendanceGraph <- bargraph(willstudy, willstudy$AttendanceFrequency, "Frequency
 
 ```{r study completion rates, echo = F}
 
-studiedprev <- willstudy %>% filter(StudiedPreviously == "Yes")
+studiedprev <- WILLSTUDY %>% filter(StudiedPreviously == "Yes")
 
 #TODO rename Reasons for not completing levels
 barriers = c("Educational support", "Money", "Time", "Started Working", "Prefer not to say", "Personal")
 
-StudiedGraph <- ggplot(willstudy, aes(StudiedPreviously)) +
-  geom_bar(aes(y = (..count..)/sum(..count..))) + 
-  ggtitle("Studied Before?") +
-  scale_y_continuous(labels=percent, limits=c(0, 0.60)) +
-  theme(axis.text.x = element_text(size = 16),
-        axis.text.y = element_text(size = 16)) +
-  labs(x = "", y = "")
+StudiedGraph <- bargraph(WILLSTUDY, WILLSTUDY$StudiedPreviously, "Studied Previously?")
 
 CompletedStudyGraph <- bargraph(studiedprev, studiedprev$CompletedStudies,"Completed Studies?")
 
 NotCompletedStudyGraph <- studiedprev %>% filter(CompletedStudies == "No") %>% 
-  ggplot(aes(ReasonNotCompleting)) +
-  geom_bar(aes(y = (..count..)/sum(..count..))) + 
-  ggtitle("Barriers to Completion") +
-  scale_x_discrete(labels = barriers) +
-  theme(axis.text.x = element_text(angle=50, size = 14, hjust = 1),
-        axis.text.y = element_text(size = 15)) +
-  labs(x = "", y = "")
-  
+ ggplot(aes(ReasonNotCompleting)) +
+ geom_bar(aes(y = (..count..)/sum(..count..))) + 
+ ggtitle("Barriers to Completion") +
+ scale_x_discrete(labels = barriers) +
+ theme(axis.text.x = element_text(angle=50, size = 14, hjust = 1),
+       axis.text.y = element_text(size = 15)) +
+ labs(x = "", y = "")
+
 ```
+
 
 
 What did drivers study before?
 ```{r}
 
-
 #polar coordinates graph of all words
 PrevStudiesCoord <- ggplot(studiedprev, aes(StudySubject, fill=StudySubject)) + 
-  geom_bar(colour = "black") +
-  coord_polar(theta = "x") + xlab("") + ylab("") + 
-  theme(legend.position = "none",
-        axis.text.x = element_text(size = 6, angle=-10)) + 
-  labs(x = NULL, y = NULL)
+ geom_bar(colour = "black") +
+ coord_polar(theta = "x") + xlab("") + ylab("") + 
+ theme(legend.position = "none",
+       axis.text.x = element_text(size = 6, angle=-10)) + 
+ labs(x = NULL, y = NULL)
 
 #TODO: merge some categories here
 
 #bargraph
 PrevStudiesGraph <- ggplot(studiedprev, aes(StudySubject, fill=StudySubject)) +
-  geom_bar(colour = "black") + 
-  labs(y = "Frequency", x = "") +
-  theme(legend.position = "none",
-        axis.text.x = element_text(size = 10),
-        axis.text.y = element_text(size = 6)) +
-  coord_flip()
+ geom_bar(colour = "black") + 
+ labs(y = "Frequency", x = "") +
+ theme(legend.position = "none",
+       axis.text.x = element_text(size = 10),
+       axis.text.y = element_text(size = 6)) +
+ coord_flip()
 
 ```
 
@@ -389,45 +297,42 @@ PrevStudiesGraph <- ggplot(studiedprev, aes(StudySubject, fill=StudySubject)) +
 
 ```{r switch position}
 
-SwitchPositionGraph <- bargraph(willstudy, willstudy$SwitchPosition, "Prepared to Switch Position")
+SwitchPositionGraph <- bargraph(WILLSTUDY, WILLSTUDY$SwitchPosition, "Prepared to Switch Position")
 
 ```
 
 
 ## Drivers have access to computers and internet for self study
 
-Of the drivers surveyed, `r getpercentage(glhdata$laptop)` have laptops, `r getpercentage(glhdata$HomeInternet)` have internet at home. Most drivers access the internet through their mobile phone. 
+Of the drivers surveyed, `r getpercentage(DATA$laptop)` have laptops, `r getpercentage(DATA$HomeInternet)` have internet at home. Most drivers access the internet through their mobile phone. 
 
 
 ```{r laptop internet}
 
-table(glhdata$laptop)
-table(glhdata$HomeInternet)
-table(glhdata$InternetAccess)
+#what percentage of drivers have access to a laptop/pc and internet?
+
+getpercentage(DATA$laptop)
+getpercentage(DATA$HomeInternet)
+getpercentage(DATA$FriendsPC)
 
 
-getpercentage(glhdata$laptop)
-getpercentage(glhdata$HomeInternet)
-getpercentage(glhdata$FriendsPC)
-
-
-InternetGraph <- bargraph(willstudy, willstudy$InternetAccess, "Method of Internet Access")
+InternetGraph <- bargraph(WILLSTUDY, WILLSTUDY$InternetAccess, "Method of Internet Access")
 
 ```
 
 ```{r graph export}
 
 graphlist <- list(c(outcomegraph, "figs/Outcome.png"),
-              c(costgraph, "figs/Cost.png"),
-              c(LengthStudyGraph, "figs/LengthStudy.png"),
-              c(LengthStudyGraph, "figs/LengthStudy.png"),
-              c(TimeCommitmentGraph, "figs/TimeCommitment.png"),
-              c(AttendanceGraph, "figs/Attendance.png"),
-              c(StudiedGraph, "figs/StudiedBefore.png"),
-              c(CompletedStudyGraph, "figs/CompletedStudies.png"),
-              c(NotCompletedStudyGraph, "figs/ReasonsNotCompletedStudy.png"),
-              c(SwitchPositionGraph, "figs/SwitchPosition.png"),
-              c(InternetGraph, "figs/InternetAccess.png"))
+                  c(costgraph, "figs/Cost.png"),
+                  c(LengthStudyGraph, "figs/LengthStudy.png"),
+                  c(LengthStudyGraph, "figs/LengthStudy.png"),
+                  c(TimeCommitmentGraph, "figs/TimeCommitment.png"),
+                  c(AttendanceGraph, "figs/Attendance.png"),
+                  c(StudiedGraph, "figs/StudiedBefore.png"),
+                  c(CompletedStudyGraph, "figs/CompletedStudies.png"),
+                  c(NotCompletedStudyGraph, "figs/ReasonsNotCompletedStudy.png"),
+                  c(SwitchPositionGraph, "figs/SwitchPosition.png"),
+                  c(InternetGraph, "figs/InternetAccess.png"))
 # 
 # for (graph in seq_along(graphlist)){
 #   exportgraph(bquote(.(graphlist[graph][1])), bquote(.(graphlist[graph[2]])))
