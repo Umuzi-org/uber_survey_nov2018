@@ -3,6 +3,23 @@ importdata <- function(filename, input){
   #' input = collection location, either "GLH" or "expo"
   data <- readxl::read_xlsx(filename)
   
+  
+  ############## combine all variants of currntly studying ####################
+  studying_list_glh = c("Currently busy with studying", 
+                        "currently studying", 
+                        "Currently studying", 
+                        "Studies in progress",
+                        "I am currently busy studying at college")
+  
+  studying_list_expo = c("Still studying", 
+                         "Still in progress")
+  
+  motivation_expo = c("I did not feel motivated to complete the course",
+                      "I worked for a company that deals with electronics not heavy current as my dream is become an artisan",
+                      "Outstanding training ti get qualification")
+  
+  ############################################################################
+  
   #rename and create factors, defining order and collapsing levels of currently studying
   data %<>% rename(
     WillingnessStudy = "Are you willing to study part-time while operating on Uber?",
@@ -21,7 +38,8 @@ importdata <- function(filename, input){
     mutate_all(funs(factor)) %>%
     mutate(LengthWillingStudy = factor(LengthWillingStudy, levels = OrderLengthStudy),
            AttendanceFrequency = factor(AttendanceFrequency, levels = OrderFreqAttendance),
-           PreferredCost = factor(PreferredCost, levels = OrderPreferredCost)
+           PreferredCost = factor(PreferredCost, levels = OrderPreferredCost),
+           Skills = toupper(trimws(Skills))
     )
   
   if (input == "GLH"){
@@ -40,7 +58,8 @@ importdata <- function(filename, input){
       StudiedPreviously = "Did you study after high school?",
       FocusGroup = "Would you be willing to attend a focus group to talk about your goals for further education and  skills?") %>% 
       mutate(ReasonNotCompleting = fct_collapse(ReasonNotCompleting, 
-                                                `Currently Studying` = studying_list_expo))
+                                                `Currently Studying` = studying_list_expo,
+                                                `No motivation` = motivation_expo))
     
     #make sure forms weren't submitted twice
     data <- data[!duplicated(data),]

@@ -123,15 +123,3 @@ expodata <- studycompletion(expodata, "expo")
 willstudy_glh <- glhdata[which(glhdata$WillingnessStudy == "Yes"),]
 willstudy_expo <- expodata[which(expodata$WillingnessStudy == "Yes"),]
 willstudy_all <- alldata[which(alldata$WillingnessStudy == "Yes"),]
-
-
-##################  export #########################################################
-
-write.csv(willstudy_all, "clean/willstudy_all.csv", row.names = F)
-write.csv(willstudy_glh, "clean/willstudy_glh.csv", row.names = F) 
-write.csv(willstudy_expo, "clean/willstudy_expo.csv", row.names = F)
-
-write.csv(alldata, "clean/alldata.csv", row.names = F)
-write.csv(glhdata, "clean/glhdata.csv", row.names = F) 
-write.csv(expodata, "clean/expodata.csv", row.names = F)
-
