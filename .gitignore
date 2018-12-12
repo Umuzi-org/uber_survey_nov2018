@@ -2,3 +2,10 @@
 .Rhistory
 .RData
 .Ruserdata
+
+#folders
+clean/*
+figs/*
+
+#data
+data/*

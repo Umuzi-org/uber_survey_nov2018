@@ -71,8 +71,8 @@ studycompletion <- function(data, input){
 ################ get  data  #################################################
 
 #import survey data
-glhdata <- importdata("Umuzi Driver Education Revised.xlsx", "GLH")
-expodata <- importdata("UMUZI2Uber Driver-Partner Survey 2.0 (Responses).xlsx", "expo")
+glhdata <- importdata("data/Umuzi Driver Education Revised.xlsx", "GLH")
+expodata <- importdata("data/UMUZI2Uber Driver-Partner Survey 2.0 (Responses).xlsx", "expo")
 
 #revalue internet access
 glhdata$InternetAccess <- plyr::revalue(glhdata$InternetAccess, 
