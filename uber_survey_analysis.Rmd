@@ -39,8 +39,8 @@ getpercentage <- function(var){
 }
 
 #basic bargraph
-bargraph <- function(data, x, title = ""){
- p <- ggplot(data, aes(x = x))
+bargraph <- function(data, x, group = NULL, title = ""){
+ p <- ggplot(data, aes(x = x, fill = group))
  p + geom_bar(aes(y = (..count..)/sum(..count..))) + 
   scale_y_continuous(labels=percent) + 
   labs(x = "", y = "") +
@@ -79,9 +79,6 @@ countcats <- function(category, list){
 
 DATA <- alldata
 WILLSTUDY <- willstudy_all
-
-#only for alldata
-DATA$sample <- ifelse(DATA$id %in% c(1:999), "GLH", "expo")
                  
 ```
 
@@ -95,7 +92,7 @@ Count of certificate, new skill, job
 ```{r cost outcome willing}
 
 #how many drivers are willing to study?
-WillingStudyGraph <- bargraph(DATA, DATA$WillingnessStudy, "Willing to Study Part-Time?")
+WillingStudyGraph <- bargraph(DATA, DATA$WillingnessStudy, DATA$sample, "Willing to Study Part-Time?")
 
 costlevels <- c("Nothing", "Less than R200", "R200 - R499", 
                 "R500 - R999", "R1000 - R1999", "R2000 - R2999")
@@ -103,10 +100,11 @@ costlevels <- c("Nothing", "Less than R200", "R200 - R499",
 #there is one NA value from someone who otherwise completed all questiosn - drop NA
 willstudy_complete <- WILLSTUDY[which(!is.na(WILLSTUDY$PreferredCost)),]
 
-costgraph <- bargraph(willstudy_complete, willstudy_complete$PreferredCost, "Preferred Cost") +
+costgraph <- bargraph(willstudy_complete, willstudy_complete$PreferredCost, 
+                      willstudy_complete$sample, "Preferred Cost") +
  scale_x_discrete(labels = costlevels)
 
-outcomegraph <- bargraph(WILLSTUDY, WILLSTUDY$DesiredOutcome, "Desired Outcome")
+outcomegraph <- bargraph(WILLSTUDY, WILLSTUDY$DesiredOutcome, WILLSTUDY$sample, "Desired Outcome")
 
 ```
 
@@ -161,9 +159,12 @@ SkillGraph <- ggplot(skill_df, aes(Category, Count)) +
 
 ```{r willingness to learn, echo = F}
 
-LengthStudyGraph <- bargraph(WILLSTUDY, WILLSTUDY$LengthWillingStudy, "Length Willing to Study")
-TimeCommitmentGraph <- bargraph(WILLSTUDY, WILLSTUDY$DailyTimeCommitment, "Daily Time Commitment")
-AttendanceGraph <- bargraph(WILLSTUDY, WILLSTUDY$AttendanceFrequency, "Frequency of Attendance")
+LengthStudyGraph <- bargraph(WILLSTUDY, WILLSTUDY$LengthWillingStudy, 
+                             WILLSTUDY$sample, "Length Willing to Study")
+TimeCommitmentGraph <- bargraph(WILLSTUDY, WILLSTUDY$DailyTimeCommitment, 
+                                WILLSTUDY$sample, "Daily Time Commitment")
+AttendanceGraph <- bargraph(WILLSTUDY, WILLSTUDY$AttendanceFrequency, 
+                            WILLSTUDY$sample, "Frequency of Attendance")
 
 ```
 
@@ -181,15 +182,17 @@ studiedprev <- WILLSTUDY %>% filter(StudiedPreviously == "Yes")
 barriers = c("Education support", "Money", "Time", "Started Working", "Prefer not to say", 
              "Personal", "Motivation", "Too difficult", "Unaccredited Institution")
 
-StudiedGraph <- bargraph(WILLSTUDY, WILLSTUDY$StudiedPreviously, "Studied Previously?")
+StudiedGraph <- bargraph(WILLSTUDY, WILLSTUDY$StudiedPreviously, WILLSTUDY$sample, "Studied Previously?")
 
-CompletedStudyGraph <- bargraph(studiedprev, studiedprev$CompletedStudies,"Completed Studies?")
+CompletedStudyGraph <- bargraph(studiedprev, studiedprev$CompletedStudies, 
+                                studiedprev$sample, "Completed Studies?")
 
 #filter out those who are currently studying from incomplete list
 incomplete_study <- studiedprev %>% 
  filter(CompletedStudies == "No" & ReasonNotCompleting != "Currently Studying")
  
-NotCompletedStudyGraph <- bargraph(incomplete_study, incomplete_study$ReasonNotCompleting, "Barriers to Completion") +
+NotCompletedStudyGraph <- bargraph(incomplete_study, incomplete_study$ReasonNotCompleting, 
+                                   incomplete_study$sample, "Barriers to Completion") +
  scale_x_discrete(labels = barriers)
 
 ```
@@ -199,7 +202,8 @@ NotCompletedStudyGraph <- bargraph(incomplete_study, incomplete_study$ReasonNotC
 
 ```{r switch position}
 
-SwitchPositionGraph <- bargraph(WILLSTUDY, WILLSTUDY$SwitchPosition, "Prepared to Switch Position")
+SwitchPositionGraph <- bargraph(WILLSTUDY, WILLSTUDY$SwitchPosition, 
+                                WILLSTUDY$sample, "Prepared to Switch Position")
 
 ```
 
@@ -218,7 +222,7 @@ getpercentage(DATA$HomeInternet)
 getpercentage(DATA$FriendsPC)
 
 
-InternetGraph <- bargraph(WILLSTUDY, WILLSTUDY$InternetAccess, "Method of Internet Access")
+InternetGraph <- bargraph(WILLSTUDY, WILLSTUDY$InternetAccess, WILLSTUDY$sample, "Method of Internet Access")
 
 ```
 
@@ -240,18 +244,18 @@ graphlist <- list(c(outcomegraph, "figs/Outcome.png"),
 #   exportgraph(bquote(.(graphlist[graph][1])), bquote(.(graphlist[graph[2]])))
 # }
 
-exportgraph(WillingStudyGraph, "figs/alldata/WillingToStudy.png")
-exportgraph(outcomegraph, "figs/alldata/Outcome.png")
-exportgraph(costgraph, "figs/alldata/Cost.png")
-exportgraph(LengthStudyGraph, "figs/alldata/LengthStudy.png")
-exportgraph(TimeCommitmentGraph, "figs/alldata/TimeCommitment.png")
-exportgraph(AttendanceGraph, "figs/alldata/Attendance.png")
-exportgraph(StudiedGraph, "figs/alldata/StudiedBefore.png")
-exportgraph(CompletedStudyGraph, "figs/alldata/CompletedStudies.png")
-exportgraph(NotCompletedStudyGraph, "figs/alldata/ReasonsNotCompletedStudy.png")
-exportgraph(SwitchPositionGraph, "figs/alldata/SwitchPosition.png")
-exportgraph(InternetGraph, "figs/alldata/InternetAccess.png")
-exportgraph(SkillGraph, "figs/alldata/SkillCategories.png")
+exportgraph(WillingStudyGraph, "figs/bysample/WillingToStudy.png")
+exportgraph(outcomegraph, "figs/bysample/Outcome.png")
+exportgraph(costgraph, "figs/bysample/Cost.png")
+exportgraph(LengthStudyGraph, "figs/bysample/LengthStudy.png")
+exportgraph(TimeCommitmentGraph, "figs/bysample/TimeCommitment.png")
+exportgraph(AttendanceGraph, "figs/bysample/Attendance.png")
+exportgraph(StudiedGraph, "figs/bysample/StudiedBefore.png")
+exportgraph(CompletedStudyGraph, "figs/bysample/CompletedStudies.png")
+exportgraph(NotCompletedStudyGraph, "figs/bysample/ReasonsNotCompletedStudy.png")
+exportgraph(SwitchPositionGraph, "figs/bysample/SwitchPosition.png")
+exportgraph(InternetGraph, "figs/bysample/InternetAccess.png")
+exportgraph(SkillGraph, "figs/bysample/SkillCategories.png")
 
 
 dev.off()

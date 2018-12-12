@@ -116,6 +116,8 @@ expodata <- studycompletion(expodata, "expo")
 
  #merge
  alldata <- rbind(glhdata, temp)
+ #mark which sample participants came from
+ alldata$sample <- ifelse(alldata$id %in% c(1:999), "GLH", "expo")
  
 #################### subset those willing to study ##################################
 
