@@ -46,7 +46,8 @@ bargraph <- function(data, x, group = NULL, title = ""){
   labs(x = "", y = "") +
   ggtitle(title) +
   theme(axis.text.x = element_text(angle = 40, size = 16, hjust = 1),
-        axis.text.y = element_text(size = 16))
+        axis.text.y = element_text(size = 16)) +
+  scale_fill_manual("", values = c("grey40", "darkorange1"))
  
 }
 
@@ -76,7 +77,6 @@ countcats <- function(category, list){
 ```{r get data}
 
 #change according to dataset required
-
 DATA <- alldata
 WILLSTUDY <- willstudy_all
                  
@@ -125,6 +125,7 @@ skillcats <- list(TRADESKILLS, BUSINESS_SKILLS, IT_SKILLS, MARKETING,
                   ENGINEERING, HEALTH, CREATIVE, ENGLISH, AGRICULTURE)
 
 
+#TODO: find countcats
 
 #count skills by category
 skillscount <- list()
@@ -147,10 +148,14 @@ skill_df$Category <- factor(skill_df$Category,
 #graph popular skill areas 
 SkillGraph <- ggplot(skill_df, aes(Category, Count)) +
  geom_bar(stat = "identity") + 
+ scale_fill_manual(values = "grey40") +
  ggtitle("Popular skill areas") +
  theme(axis.text.x = element_text(angle = 40, size = 16, hjust = 1),
        axis.text.y = element_text(size = 16)) +
  labs(x = "", y = "Count")
+
+
+rm(temp)
 
 ```
 

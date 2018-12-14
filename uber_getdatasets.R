@@ -11,20 +11,23 @@ library(readxl) #for excel files
 
 source("importdata.R")
 
+## data location
+GLHDATA = "raw_data/Umuzi Driver Education Revised.xlsx"
+EXPODATA = "raw_data/UMUZI2Uber Driver-Partner Survey 2.0 (Responses).xlsx"
+
 ##### define factor levels ###############################################
 
 #define order of factor levels
 OrderLengthStudy<- c("Less than 6 months", "6 months - 1 year", "1 - 2 years",
                      "3 - 5 years", "More than 5 years")
 
-OrderTimeCommitment<- c("1 - 2 hours", "3 -5 hours", "6 - 10 hours",
-                        "10 - 15 hours", "16 - 20 hours", "More than 20 hours")
+OrderTimeCommitment<- c("Less than an hour", "1 hour", "2 hours",
+                        "3 hours", "4 or more hours")
 
 OrderFreqAttendance<- c("Every weekday", "Twice a week", "Once a week", "Twice a month", "Once a month")
 
 OrderPreferredCost <- c("I'm not willing to pay for studying", "Less than R200", 
                         "R200 - R499", "R500 - R999", "R1000 - R1999", "R2000 - R2999")
-
 
 ############## combine all variants of currntly studying ####################
 studying_list_glh = c("Currently busy with studying", 
@@ -71,8 +74,8 @@ studycompletion <- function(data, input){
 ################ get  data  #################################################
 
 #import survey data
-glhdata <- importdata("data/Umuzi Driver Education Revised.xlsx", "GLH")
-expodata <- importdata("data/UMUZI2Uber Driver-Partner Survey 2.0 (Responses).xlsx", "expo")
+glhdata <- importdata(GLHDATA, "GLH")
+expodata <- importdata(EXPODATA, "expo")
 
 #revalue internet access
 glhdata$InternetAccess <- plyr::revalue(glhdata$InternetAccess, 
@@ -114,8 +117,14 @@ expodata <- studycompletion(expodata, "expo")
   dplyr::select(-WeeklyTimeCommitment) %>% 
   dplyr::select(id, DailyTimeCommitment, everything())
 
- #merge
- alldata <- rbind(glhdata, temp)
+ #merge and define factor levels
+ alldata <- rbind(glhdata, temp) %>% 
+  mutate(LengthWillingStudy = factor(LengthWillingStudy, levels = OrderLengthStudy),
+         AttendanceFrequency = factor(AttendanceFrequency, levels = OrderFreqAttendance),
+         PreferredCost = factor(PreferredCost, levels = OrderPreferredCost),
+         DailyTimeCommitment = factor(DailyTimeCommitment, levels = OrderTimeCommitment),
+         Skills = toupper(trimws(Skills)))
+ 
  #mark which sample participants came from
  alldata$sample <- ifelse(alldata$id %in% c(1:999), "GLH", "expo")
  
@@ -125,3 +134,6 @@ expodata <- studycompletion(expodata, "expo")
 willstudy_glh <- glhdata[which(glhdata$WillingnessStudy == "Yes"),]
 willstudy_expo <- expodata[which(expodata$WillingnessStudy == "Yes"),]
 willstudy_all <- alldata[which(alldata$WillingnessStudy == "Yes"),]
+
+#clean
+rm(temp)

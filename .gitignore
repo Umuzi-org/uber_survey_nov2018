@@ -3,9 +3,9 @@
 .RData
 .Ruserdata
 
-#folders
-clean/*
+#output folders
+clean_data/*
 figs/*
 
 #data
-data/*
+raw_data/*

@@ -3,7 +3,6 @@ importdata <- function(filename, input){
   #' input = collection location, either "GLH" or "expo"
   data <- readxl::read_xlsx(filename)
   
-  
   ############## combine all variants of currntly studying ####################
   studying_list_glh = c("Currently busy with studying", 
                         "currently studying", 
@@ -35,12 +34,7 @@ importdata <- function(filename, input){
     StudySubject = "If \" yes\", what did you study?",
     CompletedStudies = "Did you complete your studies?",
     ReasonNotCompleting = "What prevented you from completing your studies?") %>% 
-    mutate_all(funs(factor)) %>%
-    mutate(LengthWillingStudy = factor(LengthWillingStudy, levels = OrderLengthStudy),
-           AttendanceFrequency = factor(AttendanceFrequency, levels = OrderFreqAttendance),
-           PreferredCost = factor(PreferredCost, levels = OrderPreferredCost),
-           Skills = toupper(trimws(Skills))
-    )
+    mutate_all(funs(factor))
   
   if (input == "GLH"){
     data %<>% rename(
