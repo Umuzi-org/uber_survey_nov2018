@@ -1,0 +1,11 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+
+#output folders
+clean_data/*
+figs/*
+
+#data
+raw_data/*
