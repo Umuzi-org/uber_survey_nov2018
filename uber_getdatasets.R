@@ -10,10 +10,12 @@ library(magrittr) #pipe
 library(readxl) #for excel files
 
 source("importdata.R")
+source("revalue_internet.R")
 
 ## data location
 GLHDATA = "raw_data/Umuzi Driver Education Revised.xlsx"
 EXPODATA = "raw_data/UMUZI2Uber Driver-Partner Survey 2.0 (Responses).xlsx"
+ONLINE_SURVEY = "raw_data/Uber DriverPartner Survey Powered by Umuzi.csv"
 
 ##### define factor levels ###############################################
 
@@ -40,6 +42,7 @@ studying_list_expo = c("Still studying",
                        "Still in progress")
 
 ############ functions ####################################################
+
 
 #get laptop and personal computer separately from list
 pclaptop <- function(data){
@@ -72,37 +75,46 @@ studycompletion <- function(data, input){
 }
 
 ################ get  data  #################################################
+datalist <- list(
+ "GLH" = GLHDATA, 
+ "expo" = EXPODATA,
+ "online" = ONLINE_SURVEY
+)
+
+
+# for (input in len(datalist)){
+#  
+# } 
 
 #import survey data
 glhdata <- importdata(GLHDATA, "GLH")
 expodata <- importdata(EXPODATA, "expo")
+onlinedata <- importdata(ONLINE_SURVEY, "online")
 
-#revalue internet access
-glhdata$InternetAccess <- plyr::revalue(glhdata$InternetAccess, 
-                                        c("I don't have any internet access when not operating on Uber"="None",
-                                          "Internet at home"="WiFi at home",
-                                          "Internet Cafe" = "Internet Cafe",
-                                          "With your cellphone data" = "Mobile data"))
 
-expodata$InternetAccess <- plyr::revalue(expodata$InternetAccess, 
-                                         c("I don't have any internet access when not operating on Uber"="None",
-                                           "Internet at home (WiFi or ADSL)"="WiFi at home",
-                                           "Internet Cafe" = "Internet Cafe",
-                                           "With your cellphone data" = "Mobile data",
-                                           "Free internet from a community centre" = "Community Centre"))
+glhdata <- revalue_internet(glhdata, "GLH")
+expodata <- revalue_internet(expodata, "expo")
+onlinedata <- revalue_internet(onlinedata, "online")
+
 
 #get PC & laptop columns (1 == yes)
 glhdata <- pclaptop(glhdata)
 expodata <- pclaptop(expodata)
+onlinedata <- pclaptop(onlinedata)
 
 #change completed = No to completed = Currently studying for those still in program
 glhdata <- studycompletion(glhdata, "GLH")
 expodata <- studycompletion(expodata, "expo")
+#TODO: change onlinedata
 
 #combine data
  #rearrange order of expodata
  #drop PassedMatric
- temp <- expodata %>% 
+ temp1 <- expodata %>% 
+  dplyr::select(id, DailyTimeCommitment, everything()) %>% 
+  dplyr::select(-PassedMatric, -Timestamp)
+ 
+ temp2 <- onlinedata %>% 
   dplyr::select(id, DailyTimeCommitment, everything()) %>% 
   dplyr::select(-PassedMatric, -Timestamp) 
 
@@ -118,7 +130,7 @@ expodata <- studycompletion(expodata, "expo")
   dplyr::select(id, DailyTimeCommitment, everything())
 
  #merge and define factor levels
- alldata <- rbind(glhdata, temp) %>% 
+ alldata <- rbind(glhdata, temp1, temp2) %>% 
   mutate(LengthWillingStudy = factor(LengthWillingStudy, levels = OrderLengthStudy),
          AttendanceFrequency = factor(AttendanceFrequency, levels = OrderFreqAttendance),
          PreferredCost = factor(PreferredCost, levels = OrderPreferredCost),
@@ -126,14 +138,16 @@ expodata <- studycompletion(expodata, "expo")
          Skills = toupper(trimws(Skills)))
  
  #mark which sample participants came from
- alldata$sample <- ifelse(alldata$id %in% c(1:999), "GLH", "expo")
+ alldata$sample <- ifelse(alldata$id %in% c(1:999), "GLH", 
+                          ifelse(alldata$id %in% c(1000:1999), "expo", "online"))
  
 #################### subset those willing to study ##################################
 
 #subset only those willing to study
 willstudy_glh <- glhdata[which(glhdata$WillingnessStudy == "Yes"),]
 willstudy_expo <- expodata[which(expodata$WillingnessStudy == "Yes"),]
+willstudy_online <- onlinedata[which(onlinedata$WillingnessStudy == "Yes"),]
 willstudy_all <- alldata[which(alldata$WillingnessStudy == "Yes"),]
 
 #clean
-rm(temp)
+rm(temp1, temp2)

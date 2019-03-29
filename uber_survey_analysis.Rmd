@@ -27,10 +27,34 @@ library(tm) #word count
 library(tau)
 
 source("uber_getdatasets.R")
+source("skillcodes.R") 
 
 ```
 
 ```{r functions, include = F}
+
+#career choices mapping to UMUZI webdev offering
+webdev_map <- function(skillchoices){
+     if (
+      grepl("DATA ENGINEERING", skillchoices) | 
+      grepl("WEB DEVELOPMENT", skillchoices) | 
+      grepl("CYBER SECURITY", skillchoices) | 
+      grepl(" IT", skillchoices, fixed=TRUE)){ #this assumes that there are no careers starting w IT besides IT itself (e.g. no ITEROLOGY)
+      return (TRUE)
+     } else {
+     return (FALSE)
+     }
+}
+
+#identify those who have an interest in IT and save to new variable
+return_webinterest <- function(data, skillchoices){
+ webinterest <- NA
+
+ for (i in seq_along(data[[skillchoices]])){
+  webinterest[i] <- webdev_map(data[[skillchoices]][i])
+ }
+ return(webinterest)
+}
 
 #get percentage of TRUE observations
 getpercentage <- function(var){
@@ -105,8 +129,8 @@ costgraph <- bargraph(willstudy_complete, willstudy_complete$PreferredCost,
  scale_x_discrete(labels = costlevels)
 
 outcomegraph <- bargraph(WILLSTUDY, WILLSTUDY$DesiredOutcome, WILLSTUDY$sample, "Desired Outcome")
-
 ```
+
 
 
 ## What skills do drivers want to learn?
@@ -119,8 +143,6 @@ temp <- unlist(strsplit(as.character(WILLSTUDY$Skills), c(", ", "; ", " AND ")))
 skillslist <- sort(trimws(unlist(strsplit(temp, ",")), which = "both"))
 
 #categories
-source("skillcodes.R")    
-           
 skillcats <- list(TRADESKILLS, BUSINESS_SKILLS, IT_SKILLS, MARKETING, 
                   ENGINEERING, HEALTH, CREATIVE, ENGLISH, AGRICULTURE)
 
@@ -231,8 +253,47 @@ InternetGraph <- bargraph(WILLSTUDY, WILLSTUDY$InternetAccess, WILLSTUDY$sample,
 
 ```
 
-```{r graph export}
+#Breakdown of numbers
 
+```{r}
+
+#get numbers of all participants who completed survey
+print("Number of people who completed survey:")
+table(DATA$sample)
+
+#get numbers of participants willing to study part-time
+print("Number of people willing to study part-time:")
+table(WILLSTUDY$sample)
+
+#nr people interested in studying webdev or related field (TRUE = interested)
+
+WILLSTUDY$webinterest <- return_webinterest(WILLSTUDY, "Skills")
+
+print("Number of ppl interested in webdev")
+table(WILLSTUDY$webinterest)
+WEBDEV = WILLSTUDY %>% dplyr::filter(webinterest == T)
+
+#of those interested in webdev, how many have PCs incl friends? 
+print(paste("number of ppl with PC access: ", nrow(WEBDEV %>% filter(laptop == 1 | FriendsPC == 1))))
+
+
+# of those interested in webdev, how many have access to wifi?
+print(paste("number of ppl wiht wifi at home: ", 
+            nrow(WEBDEV %>% filter(InternetAccess == "WiFi at home"))))
+
+print("breakdown of internet access:")
+table(WEBDEV$InternetAccess)
+
+# of those interested in webdev, how many are willing to pay at least R200?
+print(paste("number of ppl willing to pay at least R200/month: ",
+            nrow(WEBDEV %>% filter(PreferredCost != "I'm not willing to pay for studying" &
+                        PreferredCost != "Less than R200"))))
+
+print("breakdown of preferred course cost:")
+table(WEBDEV$PreferredCost)
+```
+
+```{r}
 graphlist <- list(c(outcomegraph, "figs/Outcome.png"),
                   c(costgraph, "figs/Cost.png"),
                   c(LengthStudyGraph, "figs/LengthStudy.png"),
@@ -264,5 +325,7 @@ exportgraph(SkillGraph, "figs/bysample/SkillCategories.png")
 
 
 dev.off()
+
+
 ```
 
